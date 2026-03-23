@@ -123,18 +123,8 @@ document.addEventListener('keydown',    unlockAudio, { once: true });
 document.addEventListener('touchstart', unlockAudio, { once: true });
 document.addEventListener('click',      unlockAudio, { once: true });
 
-// ── ORIENTATION LOCK ─────────────────────────────────────────────────────────
-
-async function lockLandscape() {
-  try {
-    if (screen.orientation && screen.orientation.lock) {
-      await screen.orientation.lock('landscape');
-    }
-  } catch (e) { /* not supported — CSS handles it */ }
-}
-
-// Lock when game screen becomes active
-function onGameStart() { lockLandscape(); }
+// Portrait mode is fully supported — no orientation lock needed
+function onGameStart() {}
 
 // ── CANVAS SETUP ────────────────────────────────────────────────────────────
 
