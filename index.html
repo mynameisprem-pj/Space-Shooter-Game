@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>NOVA BLAST — Space Shooter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Rotate prompt (mobile portrait only) -->
+  <div id="rotate-prompt">
+    <div class="rotate-inner">
+      <div class="rotate-icon">⟳</div>
+      <div class="rotate-text">ROTATE YOUR DEVICE</div>
+      <div class="rotate-sub">This game plays in landscape mode</div>
+    </div>
+  </div>
+
+  <!-- ── SCREENS ─────────────────────────────────────── -->
+  <div id="screen-menu" class="screen active">
+    <div class="stars-bg"></div>
+    <div class="menu-content">
+      <div class="logo-wrap">
+        <div class="logo-sub">— ARCADE —</div>
+        <h1 class="logo">NOVA<br>BLAST</h1>
+        <div class="logo-glow"></div>
+      </div>
+      <div class="best-score-display" id="menu-best">BEST: 0</div>
+      <button class="btn-primary" id="btn-start">LAUNCH MISSION</button>
+      <div class="controls-hint">
+        <span>🖥️ Arrow / WASD + Space</span>
+        <span>📱 Touch joystick + tap</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen-game" class="screen">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div class="hud-left">
+        <div class="hud-label">SCORE</div>
+        <div class="hud-value" id="hud-score">0</div>
+      </div>
+      <div class="hud-center">
+        <div class="hud-label">LEVEL</div>
+        <div class="hud-value" id="hud-level">1</div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-label">LIVES</div>
+        <div class="hud-lives" id="hud-lives">
+          <span class="life">♥</span>
+          <span class="life">♥</span>
+          <span class="life">♥</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile controls -->
+    <div id="mobile-controls">
+      <div id="joystick-zone">
+        <div id="joystick-base">
+          <div id="joystick-knob"></div>
+        </div>
+      </div>
+      <button id="btn-fire">🔥</button>
+    </div>
+  </div>
+
+  <div id="screen-gameover" class="screen">
+    <div class="stars-bg"></div>
+    <div class="gameover-content">
+      <div class="gameover-title" id="go-title">MISSION FAILED</div>
+      <div class="go-score-label">YOUR SCORE</div>
+      <div class="go-score" id="go-score">0</div>
+      <div class="go-best" id="go-best">BEST: 0</div>
+      <div class="go-stats" id="go-stats"></div>
+      <button class="btn-primary" id="btn-restart">TRY AGAIN</button>
+      <button class="btn-secondary" id="btn-menu">MAIN MENU</button>
+    </div>
+  </div>
+
+  <!-- Level-up flash -->
+  <div id="level-flash"></div>
+
+  <!-- Desktop instructions overlay (hidden on mobile) -->
+  <div id="instructions">
+    <div class="inst-inner">
+      <div class="inst-title">HOW TO PLAY</div>
+      <div class="inst-grid">
+        <div class="inst-key-group">
+          <div class="inst-keys">
+            <div class="key-row"><kbd>W</kbd></div>
+            <div class="key-row"><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+          </div>
+          <div class="inst-label">MOVE</div>
+        </div>
+        <div class="inst-divider"></div>
+        <div class="inst-key-group">
+          <div class="inst-keys">
+            <div class="key-row"><kbd class="key-wide">↑ ↓ ← →</kbd></div>
+          </div>
+          <div class="inst-label">ALSO MOVE</div>
+        </div>
+        <div class="inst-divider"></div>
+        <div class="inst-key-group">
+          <div class="inst-keys">
+            <div class="key-row"><kbd class="key-space">SPACE</kbd></div>
+          </div>
+          <div class="inst-label">FIRE (HOLD)</div>
+        </div>
+      </div>
+      <div class="inst-powerups">
+        <div class="inst-pu-title">POWER-UPS TO COLLECT</div>
+        <div class="inst-pu-list">
+          <span>🛡 Shield</span>
+          <span>⚡ Rapid Fire</span>
+          <span>✦ Tri-Shot</span>
+          <span>💥 Bomb</span>
+        </div>
+      </div>
+      <div class="inst-dismiss">Press any key or click to start playing</div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
