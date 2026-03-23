@@ -1035,7 +1035,7 @@ instrEl.addEventListener('click', dismissInstructions);
 // Only show on desktop (touch devices handled by CSS display:none)
 // Re-show instructions each time the game screen becomes active
 function maybeShowInstructions() {
-  const isTouch = window.matchMedia('(hover: none)').matches;
+  const isTouch = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
   if (isTouch) return;
   instrDismissed = false;
   instrEl.style.display = 'flex';

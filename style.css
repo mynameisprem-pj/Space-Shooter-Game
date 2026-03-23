@@ -551,7 +551,7 @@ kbd.key-space { min-width: 160px; font-size: 12px; letter-spacing: 4px; }
 @keyframes dimPulse { 0%,100%{opacity:.5} 50%{opacity:1} }
 
 /* Hide instructions on touch devices */
-@media (hover: none) {
+@media (pointer: coarse) {
   #instructions { display: none !important; }
 }
 
@@ -599,25 +599,25 @@ kbd.key-space { min-width: 160px; font-size: 12px; letter-spacing: 4px; }
 /* ── RESPONSIVE ─────────────────────────────── */
 
 /* Portrait mobile → show rotate prompt only */
-@media (hover: none) and (orientation: portrait) {
+@media (pointer: coarse) and (orientation: portrait) {
   #rotate-prompt { display: flex; }
   #screen-menu, #screen-game, #screen-gameover, #instructions { display: none !important; }
 }
 
 /* Landscape mobile → game visible, controls shown */
-@media (hover: none) and (orientation: landscape) {
+@media (pointer: coarse) and (orientation: landscape) {
   #rotate-prompt   { display: none !important; }
   #mobile-controls { display: flex !important; }
 }
 
 /* Desktop — no mobile controls, no rotate prompt */
-@media (hover: hover) {
+@media (pointer: fine) {
   #mobile-controls { display: none; }
   #rotate-prompt   { display: none !important; }
 }
 
 /* Small landscape phones (height < 450px) — compact layout */
-@media (hover: none) and (orientation: landscape) and (max-height: 450px) {
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 450px) {
   #hud            { padding: 5px 12px; }
   .hud-value      { font-size: 15px; }
   .hud-label      { font-size: 7px; }
@@ -629,7 +629,7 @@ kbd.key-space { min-width: 160px; font-size: 12px; letter-spacing: 4px; }
 }
 
 /* Larger landscape phones */
-@media (hover: none) and (orientation: landscape) and (min-height: 450px) {
+@media (pointer: coarse) and (orientation: landscape) and (min-height: 450px) {
   #mobile-controls{ bottom: 16px; padding: 0 24px; }
   #joystick-base  { width: 92px; height: 92px; }
   #btn-fire       { width: 74px; height: 74px; }
