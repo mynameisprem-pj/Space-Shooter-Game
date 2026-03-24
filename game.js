@@ -299,16 +299,10 @@ function showScreen(name) {
   screens[name].classList.add('active');
 }
 
-document.getElementById('btn-start').addEventListener('click', startGame);
-document.getElementById('btn-restart').addEventListener('click', startGame);
-document.getElementById('btn-menu').addEventListener('click', () => showScreen('menu'));
-
 // ── BEST SCORE ────────────────────────────────────────────────────────────────
 
 function getBest() { return parseInt(localStorage.getItem('novablast_best') || '0'); }
 function setBest(s) { if (s > getBest()) localStorage.setItem('novablast_best', s); }
-
-document.getElementById('menu-best').textContent = `BEST: ${getBest()}`;
 
 // ── GAME START / STOP ──────────────────────────────────────────────────────────
 
@@ -1004,47 +998,11 @@ function loop(now = 0) {
   animFrame = requestAnimationFrame(loop);
 }
 
-// ── INSTRUCTIONS OVERLAY ──────────────────────────────────────────────────────
-
-const instrEl = document.getElementById('instructions');
-let instrDismissed = false;
-
-function dismissInstructions() {
-  if (instrDismissed) return;
-  instrDismissed = true;
-  instrEl.classList.add('hidden');
-  setTimeout(() => instrEl.style.display = 'none', 320);
-}
-
-// Dismiss on any key press
-window.addEventListener('keydown', dismissInstructions, { once: false });
-
-// Dismiss on click
-instrEl.addEventListener('click', dismissInstructions);
-
-// Only show on desktop (touch devices handled by CSS display:none)
-// Re-show instructions each time the game screen becomes active
-function maybeShowInstructions() {
-  const isTouch = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
-  if (isTouch) return;
-  instrDismissed = false;
-  instrEl.style.display = 'flex';
-  instrEl.classList.remove('hidden');
-}
-
 // ── INIT ──────────────────────────────────────────────────────────────────────
 
 showScreen('menu');
-document.getElementById('menu-best').textContent = `BEST: ${getBest()}`;
+document.getElementById('menu-best').textContent = `BEST &nbsp;${getBest()}`;
 
-// Show instructions when game starts
-const origStartGame = startGame;
-window.startGame = function() {
-  origStartGame();
-  onGameStart();
-  maybeShowInstructions();
-};
-document.getElementById('btn-start').removeEventListener('click', origStartGame);
-document.getElementById('btn-start').addEventListener('click', window.startGame);
-document.getElementById('btn-restart').removeEventListener('click', origStartGame);
-document.getElementById('btn-restart').addEventListener('click', window.startGame);
+document.getElementById('btn-start').addEventListener('click', () => { startGame(); onGameStart(); });
+document.getElementById('btn-restart').addEventListener('click', () => { startGame(); onGameStart(); });
+document.getElementById('btn-menu').addEventListener('click', () => showScreen('menu'));

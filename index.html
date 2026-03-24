@@ -23,18 +23,52 @@
   <!-- ── SCREENS ─────────────────────────────────────── -->
   <div id="screen-menu" class="screen active">
     <div class="stars-bg"></div>
-    <div class="menu-content">
-      <div class="logo-wrap">
-        <div class="logo-sub">— ARCADE —</div>
-        <h1 class="logo">NOVA<br>BLAST</h1>
-        <div class="logo-glow"></div>
+    <div class="menu-layout">
+
+      <!-- LEFT: Logo + action -->
+      <div class="menu-left">
+        <div class="logo-wrap">
+          <div class="logo-sub">— ARCADE EDITION —</div>
+          <h1 class="logo">NOVA<br>BLAST</h1>
+          <div class="logo-glow"></div>
+        </div>
+        <div class="best-score-display" id="menu-best">BEST &nbsp;0</div>
+        <button class="btn-primary" id="btn-start">LAUNCH MISSION</button>
+        <div class="menu-version">v1.0 &nbsp;·&nbsp; HTML5 CANVAS</div>
       </div>
-      <div class="best-score-display" id="menu-best">BEST: 0</div>
-      <button class="btn-primary" id="btn-start">LAUNCH MISSION</button>
-      <div class="controls-hint">
-        <span>🖥️ Arrow / WASD + Space</span>
-        <span>📱 Touch joystick + tap</span>
+
+      <!-- RIGHT: How to play panel -->
+      <div class="menu-right">
+        <div class="how-to-play">
+          <div class="htp-heading">HOW TO PLAY</div>
+
+          <div class="htp-section-label">MOVEMENT</div>
+          <ul class="htp-list">
+            <li><span class="htp-keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> Move your ship</li>
+            <li><span class="htp-keys"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span> Arrow keys also work</li>
+            <li><span class="htp-keys htp-joystick">Joystick</span> On-screen joystick (mobile)</li>
+          </ul>
+
+          <div class="htp-section-label">COMBAT</div>
+          <ul class="htp-list">
+            <li><span class="htp-keys"><kbd class="kbd-space">SPACE</kbd></span> Hold to fire lasers</li>
+            <li><span class="htp-keys htp-joystick">🔥 Button</span> Fire button (mobile)</li>
+          </ul>
+
+          <div class="htp-section-label">POWER-UPS</div>
+          <ul class="htp-list htp-powerups">
+            <li><span class="pu-icon pu-shield">🛡</span><span class="pu-name">Shield</span> Blocks one hit</li>
+            <li><span class="pu-icon pu-rapid">⚡</span><span class="pu-name">Rapid Fire</span> 2.5× fire rate</li>
+            <li><span class="pu-icon pu-tri">✦</span><span class="pu-name">Tri-Shot</span> 3-bullet spread</li>
+            <li><span class="pu-icon pu-bomb">💥</span><span class="pu-name">Bomb</span> Clears all enemies</li>
+          </ul>
+
+          <div class="htp-tip">
+            Survive waves · collect power-ups · reach a high score
+          </div>
+        </div>
       </div>
+
     </div>
   </div>
 
@@ -87,46 +121,6 @@
 
   <!-- Level-up flash -->
   <div id="level-flash"></div>
-
-  <!-- Desktop instructions overlay (hidden on mobile) -->
-  <div id="instructions">
-    <div class="inst-inner">
-      <div class="inst-title">HOW TO PLAY</div>
-      <div class="inst-grid">
-        <div class="inst-key-group">
-          <div class="inst-keys">
-            <div class="key-row"><kbd>W</kbd></div>
-            <div class="key-row"><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
-          </div>
-          <div class="inst-label">MOVE</div>
-        </div>
-        <div class="inst-divider"></div>
-        <div class="inst-key-group">
-          <div class="inst-keys">
-            <div class="key-row"><kbd class="key-wide">↑ ↓ ← →</kbd></div>
-          </div>
-          <div class="inst-label">ALSO MOVE</div>
-        </div>
-        <div class="inst-divider"></div>
-        <div class="inst-key-group">
-          <div class="inst-keys">
-            <div class="key-row"><kbd class="key-space">SPACE</kbd></div>
-          </div>
-          <div class="inst-label">FIRE (HOLD)</div>
-        </div>
-      </div>
-      <div class="inst-powerups">
-        <div class="inst-pu-title">POWER-UPS TO COLLECT</div>
-        <div class="inst-pu-list">
-          <span>🛡 Shield</span>
-          <span>⚡ Rapid Fire</span>
-          <span>✦ Tri-Shot</span>
-          <span>💥 Bomb</span>
-        </div>
-      </div>
-      <div class="inst-dismiss">Press any key or click to start playing</div>
-    </div>
-  </div>
 
   <script src="game.js"></script>
 </body>
