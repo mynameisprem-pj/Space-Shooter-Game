@@ -11,67 +11,81 @@
 </head>
 <body>
 
-  <!-- Rotate prompt (mobile portrait only) -->
-  <div id="rotate-prompt">
-    <div class="rotate-inner">
-      <div class="rotate-icon">⟳</div>
-      <div class="rotate-text">ROTATE YOUR DEVICE</div>
-      <div class="rotate-sub">This game plays in landscape mode</div>
-    </div>
-  </div>
+  <div id="rotate-prompt" style="display:none"></div>
 
-  <!-- ── SCREENS ─────────────────────────────────────── -->
+  <!-- ── MENU SCREEN ───────────────────────── -->
   <div id="screen-menu" class="screen active">
     <div class="stars-bg"></div>
     <div class="menu-layout">
 
-      <!-- LEFT: Logo + action -->
+      <!-- LEFT: Logo + actions -->
       <div class="menu-left">
         <div class="logo-wrap">
           <div class="logo-sub">— ARCADE EDITION —</div>
           <h1 class="logo">NOVA<br>BLAST</h1>
           <div class="logo-glow"></div>
         </div>
-        <div class="best-score-display" id="menu-best">BEST &nbsp;0</div>
+        <div class="best-score-display" id="menu-best">BEST  0</div>
         <button class="btn-primary" id="btn-start">LAUNCH MISSION</button>
-        <div class="menu-version">v1.0 &nbsp;·&nbsp; HTML5 CANVAS</div>
+        <div class="menu-footer">
+          <span class="menu-version">v2.0 · HTML5 CANVAS</span>
+          <button class="btn-sound" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+        </div>
       </div>
 
-      <!-- RIGHT: How to play panel -->
+      <!-- RIGHT: How to play -->
       <div class="menu-right">
         <div class="how-to-play">
-          <div class="htp-heading">HOW TO PLAY</div>
+          <div class="htp-heading">How to Play</div>
 
-          <div class="htp-section-label">MOVEMENT</div>
-          <ul class="htp-list">
-            <li><span class="htp-keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> Move your ship</li>
-            <li><span class="htp-keys"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span> Arrow keys also work</li>
-            <li><span class="htp-keys htp-joystick">Joystick</span> On-screen joystick (mobile)</li>
-          </ul>
-
-          <div class="htp-section-label">COMBAT</div>
-          <ul class="htp-list">
-            <li><span class="htp-keys"><kbd class="kbd-space">SPACE</kbd></span> Hold to fire lasers</li>
-            <li><span class="htp-keys htp-joystick">🔥 Button</span> Fire button (mobile)</li>
-          </ul>
-
-          <div class="htp-section-label">POWER-UPS</div>
-          <ul class="htp-list htp-powerups">
-            <li><span class="pu-icon pu-shield">🛡</span><span class="pu-name">Shield</span> Blocks one hit</li>
-            <li><span class="pu-icon pu-rapid">⚡</span><span class="pu-name">Rapid Fire</span> 2.5× fire rate</li>
-            <li><span class="pu-icon pu-tri">✦</span><span class="pu-name">Tri-Shot</span> 3-bullet spread</li>
-            <li><span class="pu-icon pu-bomb">💥</span><span class="pu-name">Bomb</span> Clears all enemies</li>
-          </ul>
-
-          <div class="htp-tip">
-            Survive waves · collect power-ups · reach a high score
+          <div class="htp-controls">
+            <div class="htp-row">
+              <span class="htp-label">Move</span>
+              <div class="htp-keys">
+                <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+                <span class="htp-sep">/</span>
+                <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>
+              </div>
+            </div>
+            <div class="htp-row">
+              <span class="htp-label">Fire</span>
+              <div class="htp-keys">
+                <kbd class="kbd-space">SPACE</kbd>
+                <span class="htp-sep">/</span>
+                <span class="htp-mobile-tag">🔥 button</span>
+              </div>
+            </div>
+            <div class="htp-row">
+              <span class="htp-label">Mobile</span>
+              <span class="htp-mobile-tag">Joystick + Fire button</span>
+            </div>
           </div>
+
+          <hr class="htp-divider">
+
+          <div class="htp-section-title">Power-ups</div>
+          <div class="htp-powerup-grid">
+            <div class="htp-pu-item"><span class="pu-icon pu-shield">🛡</span><span class="pu-name">Shield</span></div>
+            <div class="htp-pu-item"><span class="pu-icon pu-rapid">⚡</span><span class="pu-name">Rapid Fire</span></div>
+            <div class="htp-pu-item"><span class="pu-icon pu-tri">✦</span><span class="pu-name">Tri-Shot</span></div>
+            <div class="htp-pu-item"><span class="pu-icon pu-bomb">💥</span><span class="pu-name">Bomb</span></div>
+          </div>
+
+          <hr class="htp-divider">
+
+          <div class="htp-boss-note">
+            <span class="htp-boss-icon">⚡</span>
+            <span>A <strong>Boss</strong> appears every 3 levels. Bombs weaken it.</span>
+          </div>
+
+          <div class="htp-tip">Survive waves · collect power-ups · beat your best score</div>
         </div>
       </div>
 
     </div>
   </div>
 
+  <!-- ── GAME SCREEN ───────────────────────── -->
   <div id="screen-game" class="screen">
     <canvas id="gameCanvas"></canvas>
 
@@ -86,11 +100,16 @@
         <div class="hud-value" id="hud-level">1</div>
       </div>
       <div class="hud-right">
-        <div class="hud-label">LIVES</div>
-        <div class="hud-lives" id="hud-lives">
-          <span class="life">♥</span>
-          <span class="life">♥</span>
-          <span class="life">♥</span>
+        <div class="hud-top-row">
+          <button class="btn-sound hud-sound" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+          <div>
+            <div class="hud-label">LIVES</div>
+            <div class="hud-lives" id="hud-lives">
+              <span class="life">♥</span>
+              <span class="life">♥</span>
+              <span class="life">♥</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -106,6 +125,7 @@
     </div>
   </div>
 
+  <!-- ── GAME OVER SCREEN ──────────────────── -->
   <div id="screen-gameover" class="screen">
     <div class="stars-bg"></div>
     <div class="gameover-content">
@@ -119,7 +139,7 @@
     </div>
   </div>
 
-  <!-- Level-up flash -->
+  <!-- Level flash / Boss warning overlay -->
   <div id="level-flash"></div>
 
   <script src="game.js"></script>

@@ -77,12 +77,6 @@ npx serve .
 
 ---
 
-## 🌐 Live Demo
-
-👉 (Add your Vercel link here)
-
----
-
 ## ⚙️ Performance Notes
 
 * Optimized for both mobile and desktop
@@ -93,19 +87,10 @@ npx serve .
 
 ## 🛠️ Future Improvements
 
-* Boss battles
-* Sound toggle UI
 * Leaderboard system
 * Progressive difficulty scaling
 * Game pause/resume
 * PWA support
-
----
-
-## 👤 Author
-
-**Prem Jha**
-** AI **
 
 ---
 
