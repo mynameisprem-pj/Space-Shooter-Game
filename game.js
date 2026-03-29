@@ -219,6 +219,8 @@ function resetState() {
       x: canvas.width / 2,
       y: canvas.height - 100,
       dx: 0, dy: 0,
+      maxHull: 100,
+      hull: 100,
       invincible: false,
       invincibleTimer: 0,
       shield: false,
@@ -461,7 +463,8 @@ function createEnemy(type, x, y) {
     maxHp: cfg.hp,
     t:         Math.random() * Math.PI * 2,
     dir:       1,
-    lastShot:  Date.now() + Math.random() * 2000,
+    // Uses requestAnimationFrame timeline (`now`), so start from a negative offset.
+    lastShot:  -Math.random() * 2000,
   };
 }
 
@@ -481,7 +484,8 @@ function createBoss(lvl) {
     color:     COLORS.boss,
     score:     2000 + bossNum * 600,
     fireRate:  2000,
-    lastShot:  Date.now() + 1200,
+    // Keep boss in the same timebase as update(now, dt).
+    lastShot:  -1200,
     t:         0,
     dir:       1,
     phase:     1,
@@ -854,13 +858,28 @@ function update(now, dt) {
   }
 }
 
-function hitPlayer() {
+function hitPlayer(damage = 34) {
+  if (!state.running) return;
+  const p = state.player;
+  if (p.invincible) return;
+
+  p.hull -= damage;
+  spawnHitParticles(p.x, p.y, COLORS.danger);
+
+  // Short invulnerability after non-lethal damage to avoid instant melt.
+  p.invincible = true;
+  p.invincibleTimer = 450;
+
+  if (p.hull > 0) return;
+
+  // Hull depleted: lose one life, then restore hull.
   state.lives--;
+  p.hull = p.maxHull;
+  p.invincible = true;
+  p.invincibleTimer = 2000;
   updateHUD();
-  state.player.invincible      = true;
-  state.player.invincibleTimer = 2000;
-  spawnExplosion(state.player.x, state.player.y, COLORS.danger, 14);
-  if (state.lives <= 0) setTimeout(endGame, 600);
+  spawnExplosion(p.x, p.y, COLORS.danger, 14);
+  if (state.lives <= 0) endGame();
 }
 
 function applyPowerup(type) {
@@ -892,6 +911,7 @@ function draw(now) {
   drawEnemyBullets();
   if (state.lives > 0) drawPlayer(now);
   drawBossHPBar(now);
+  drawPlayerHullBar();
 }
 
 // ── DRAW: STARS ───────────────────────────────────────────────────────────────
@@ -1201,6 +1221,36 @@ function drawBossHPBar(now) {
     ctx.fillRect(dotX - 1, by - 2, 2, barH + 4);
   });
 
+  ctx.restore();
+}
+
+function drawPlayerHullBar() {
+  if (state.lives <= 0) return;
+  const p = state.player;
+  const frac = Math.max(0, p.hull) / p.maxHull;
+  const barW = 170;
+  const barH = 10;
+  const x = 18;
+  const y = 52;
+  const barColor = frac > 0.6 ? COLORS.green : frac > 0.3 ? COLORS.accent : COLORS.danger;
+
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = '#0a1224';
+  ctx.fillRect(x - 8, y - 14, barW + 16, barH + 22);
+
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#d8e9ff';
+  ctx.fillText('HULL', x, y - 4);
+
+  ctx.fillStyle = '#1a2a44';
+  ctx.fillRect(x, y, barW, barH);
+
+  ctx.fillStyle = barColor;
+  ctx.shadowColor = barColor;
+  ctx.shadowBlur = 8;
+  ctx.fillRect(x, y, barW * frac, barH);
   ctx.restore();
 }
 
