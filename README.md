@@ -1,3 +1,4 @@
+<img width="1024" height="766" alt="TypingQuest - Brave 4_24_2026 1_11_18 PM" src="https://github.com/user-attachments/assets/6a49436d-4cb7-4bd2-901b-07b74787c195" />
 # 🚀 NOVA BLAST — Space Shooter
 
 A fast-paced, retro-futuristic **HTML5 Canvas arcade shooter** built with pure JavaScript.
