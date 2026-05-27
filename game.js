@@ -149,6 +149,15 @@ const SFX = {
     setTimeout(() =>
       playTone({ type: 'sine', freq: 55, freq2: 28, duration: 1.2, volume: 0.25, attack: 0.02 }), 100);
   },
+  // ── BULLET CLASH — player bullet meets enemy bullet mid-air ──
+  bulletClash() {
+    // Sharp crack + electric crackle + brief white-noise burst
+    playTone({ type: 'square',   freq: 1800, freq2: 200, duration: 0.10, volume: 0.30, attack: 0.001 });
+    playTone({ type: 'triangle', freq:  900, freq2: 100, duration: 0.14, volume: 0.22, attack: 0.001 });
+    playNoise({ duration: 0.08, volume: 0.28, freq: 2400, q: 1.5 });
+    // Tiny high-freq ping for "spark" feel
+    playTone({ type: 'sine', freq: 3200, freq2: 1600, duration: 0.06, volume: 0.14, attack: 0.001 });
+  },
 };
 
 // Unlock audio on first interaction
@@ -722,6 +731,69 @@ function update(now, dt) {
       }
     }
     if (hit) continue;
+  }
+
+  // ── Bullet-vs-Bullet Collision (player bullets intercept enemy bullets) ──────
+  {
+    const toRemovePlayer  = new Set();
+    const toRemoveEnemy   = new Set();
+
+    for (let i = state.bullets.length - 1; i >= 0; i--) {
+      if (toRemovePlayer.has(i)) continue;
+      const pb = state.bullets[i];
+
+      for (let j = state.eBullets.length - 1; j >= 0; j--) {
+        if (toRemoveEnemy.has(j)) continue;
+        const eb = state.eBullets[j];
+
+        // Collision radius: player bullet ~6px, enemy bullet ~5-6px
+        const clashR = eb.isBoss ? 12 : 10;
+        const dist = Math.hypot(pb.x - eb.x, pb.y - eb.y);
+
+        if (dist < clashR) {
+          // Mid-point of clash
+          const mx = (pb.x + eb.x) * 0.5;
+          const my = (pb.y + eb.y) * 0.5;
+
+          // Dramatic multi-color clash explosion
+          spawnExplosion(mx, my, COLORS.primary,   8);  // cyan ring
+          spawnExplosion(mx, my, eb.isBoss ? COLORS.boss : COLORS.secondary, 8);  // enemy color ring
+          // Extra white sparks in centre
+          for (let k = 0; k < 5; k++) {
+            state.particles.push({
+              x: mx, y: my,
+              vx: (Math.random() - 0.5) * 7,
+              vy: (Math.random() - 0.5) * 7,
+              life: 0.9,
+              decay: 0.07,
+              r: Math.random() * 2.5 + 1,
+              color: '#ffffff',
+            });
+          }
+
+          // Screen flash tint
+          ctx.save();
+          ctx.globalAlpha = 0.08;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.restore();
+
+          SFX.bulletClash();
+
+          // Give a tiny score bonus for intercepting
+          state.score += eb.isBoss ? 15 : 5;
+          popScore();
+
+          toRemovePlayer.add(i);
+          toRemoveEnemy.add(j);
+          break;
+        }
+      }
+    }
+
+    // Remove clashed bullets (splice in reverse index order)
+    [...toRemovePlayer].sort((a, b) => b - a).forEach(i => state.bullets.splice(i, 1));
+    [...toRemoveEnemy].sort((a, b) => b - a).forEach(j => state.eBullets.splice(j, 1));
   }
 
   // ── Enemy bullets
