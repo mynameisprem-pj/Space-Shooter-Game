@@ -6,16 +6,6 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#00e5ff" />
-  <meta name="description" content="NOVA BLAST — Retro space shooter with boss battles and power-ups. Play offline!" />
-
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="manifest.json" />
-
-  <!-- PWA Icons -->
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-
   <title>NOVA BLAST — Space Shooter</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -38,7 +28,7 @@
         <div class="best-score-display" id="menu-best">BEST  0</div>
         <button class="btn-primary" id="btn-start">LAUNCH MISSION</button>
         <div class="menu-footer">
-          <span class="menu-version">v3.0 · PWA · OFFLINE</span>
+          <span class="menu-version">v2.0 · HTML5 CANVAS</span>
           <button class="btn-sound" title="Toggle sound" aria-label="Toggle sound">🔊</button>
         </div>
       </div>
@@ -88,7 +78,7 @@
             <span>A <strong>Boss</strong> appears every 3 levels. Bombs weaken it.</span>
           </div>
 
-          <div class="htp-tip">Bullets collide mid-air · collect power-ups · beat your best score</div>
+          <div class="htp-tip">Survive waves · collect power-ups · beat your best score</div>
         </div>
       </div>
 
@@ -152,54 +142,6 @@
   <!-- Level flash / Boss warning overlay -->
   <div id="level-flash"></div>
 
-  <!-- PWA offline toast -->
-  <div id="pwa-toast" style="
-    display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
-    background:rgba(0,229,255,0.12); border:1px solid rgba(0,229,255,0.35);
-    color:#00e5ff; font-family:'Inter',sans-serif; font-size:12px; letter-spacing:1px;
-    padding:10px 20px; border-radius:8px; z-index:9999; pointer-events:none;
-    backdrop-filter:blur(8px); white-space:nowrap;
-  "></div>
-
   <script src="game.js"></script>
-
-  <!-- ── PWA SERVICE WORKER REGISTRATION ─── -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then(reg => {
-          // Show install prompt for new updates
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                showPwaToast('🚀 Update available — refresh to get latest version');
-              }
-            });
-          });
-        }).catch(() => {});
-      });
-
-      // Show offline/online status
-      const showPwaToast = (msg, duration = 3500) => {
-        const toast = document.getElementById('pwa-toast');
-        toast.textContent = msg;
-        toast.style.display = 'block';
-        clearTimeout(toast._timer);
-        toast._timer = setTimeout(() => { toast.style.display = 'none'; }, duration);
-      };
-
-      window.addEventListener('offline', () => showPwaToast('📡 Offline — game still works!', 4000));
-      window.addEventListener('online',  () => showPwaToast('✅ Back online'));
-
-      // PWA install prompt
-      let deferredInstall = null;
-      window.addEventListener('beforeinstallprompt', e => {
-        e.preventDefault();
-        deferredInstall = e;
-        setTimeout(() => showPwaToast('📲 Tap to install NOVA BLAST as an app', 6000), 3000);
-      });
-    }
-  </script>
 </body>
 </html>

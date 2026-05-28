@@ -128,6 +128,12 @@ const SFX = {
   shieldBlock() {
     playTone({ type: 'sine', freq: 660, freq2: 880, duration: 0.15, volume: 0.3, attack: 0.005 });
   },
+  // ── BULLET CLASH MID-AIR ──
+  bulletClash() {
+    playTone({ type: 'square',   freq: 1800, freq2: 200, duration: 0.10, volume: 0.30, attack: 0.001 });
+    playTone({ type: 'triangle', freq:  900, freq2: 100, duration: 0.14, volume: 0.22, attack: 0.001 });
+    playNoise({ duration: 0.08, volume: 0.28, freq: 2400, q: 1.5 });
+  },
   // ── BOSS SFX ──
   bossWarning() {
     [880, 660, 550, 330, 220].forEach((f, i) => setTimeout(() =>
@@ -148,15 +154,6 @@ const SFX = {
       playTone({ type: 'sawtooth', freq: 110 - i * 25, freq2: 18, duration: 0.65, volume: 0.38, attack: 0.005 }), d * 1000));
     setTimeout(() =>
       playTone({ type: 'sine', freq: 55, freq2: 28, duration: 1.2, volume: 0.25, attack: 0.02 }), 100);
-  },
-  // ── BULLET CLASH — player bullet meets enemy bullet mid-air ──
-  bulletClash() {
-    // Sharp crack + electric crackle + brief white-noise burst
-    playTone({ type: 'square',   freq: 1800, freq2: 200, duration: 0.10, volume: 0.30, attack: 0.001 });
-    playTone({ type: 'triangle', freq:  900, freq2: 100, duration: 0.14, volume: 0.22, attack: 0.001 });
-    playNoise({ duration: 0.08, volume: 0.28, freq: 2400, q: 1.5 });
-    // Tiny high-freq ping for "spark" feel
-    playTone({ type: 'sine', freq: 3200, freq2: 1600, duration: 0.06, volume: 0.14, attack: 0.001 });
   },
 };
 
@@ -240,29 +237,53 @@ function resetState() {
       thrusterFrame: 0,
     },
 
-    bullets:   [],
-    enemies:   [],
-    eBullets:  [],
-    particles: [],
-    powerups:  [],
-    stars:     generateStars(),
-    starSpeed: 1.5,
+    bullets:        [],
+    enemies:        [],
+    eBullets:       [],
+    particles:      [],
+    powerups:       [],
+    floatingTexts:  [],
+    stars:          generateStars(),
+    starSpeed:      1.5,
+
+    // ── Combo system
+    combo:          1,
+    comboTimer:     0,
+    lastKillTime:   0,
+
+    // ── Screen shake
+    shake:          { dur: 0, mag: 0 },
+
+    // ── Boss minion spawner
+    bossSpawnTimer: 0,
+    bossSpawnRate:  8000,
+
+    // ── Session stats
+    _bestCombo: 1,
   };
 }
 
-// ── STARS ────────────────────────────────────────────────────────────────────
+// ── STARS (3-layer parallax) ──────────────────────────────────────────────────
 
 function generateStars() {
   const stars = [];
-  for (let i = 0; i < 65; i++) {
-    stars.push({
-      x:     Math.random() * 2000,
-      y:     Math.random() * 2000,
-      r:     Math.random() * 1.5 + 0.3,
-      speed: Math.random() * 1.5 + 0.3,
-      alpha: Math.random() * 0.7 + 0.2,
-    });
-  }
+  const layerCfg = [
+    { count: 55, rMin: 0.3, rMax: 0.8,  alphaMin: 0.12, alphaMax: 0.28, speedMul: 0.35 },
+    { count: 40, rMin: 0.7, rMax: 1.4,  alphaMin: 0.25, alphaMax: 0.55, speedMul: 0.75 },
+    { count: 22, rMin: 1.2, rMax: 2.2,  alphaMin: 0.45, alphaMax: 0.85, speedMul: 1.55 },
+  ];
+  layerCfg.forEach((cfg, layer) => {
+    for (let i = 0; i < cfg.count; i++) {
+      stars.push({
+        x:     Math.random() * 2000,
+        y:     Math.random() * 2000,
+        r:     Math.random() * (cfg.rMax - cfg.rMin) + cfg.rMin,
+        speed: cfg.speedMul,
+        alpha: Math.random() * (cfg.alphaMax - cfg.alphaMin) + cfg.alphaMin,
+        layer,
+      });
+    }
+  });
   return stars;
 }
 
@@ -375,8 +396,9 @@ function endGame() {
   document.getElementById('go-score').textContent = state.score;
   document.getElementById('go-best').textContent  = `BEST: ${getBest()}`;
   document.getElementById('go-title').textContent = state.score > 2000 ? 'MISSION COMPLETE' : 'MISSION FAILED';
+  const bestCombo = state._bestCombo || 1;
   document.getElementById('go-stats').innerHTML   =
-    `ENEMIES DEFEATED: ${state.totalKilled}<br>WAVES CLEARED: ${state.wave - 1}`;
+    `ENEMIES DEFEATED: ${state.totalKilled}&nbsp;&nbsp;·&nbsp;&nbsp;WAVES CLEARED: ${state.wave - 1}<br>BEST COMBO: x${bestCombo}`;
   showScreen('gameover');
 }
 
@@ -444,7 +466,7 @@ function spawnWave() {
   const count    = 4 + (lvl - 1) * 2;
   const cols     = Math.min(count, 8);
   const rows     = Math.ceil(count / cols);
-  const types    = lvl < 3 ? ['basic'] : lvl < 5 ? ['basic','fast'] : ['basic','fast','tank'];
+  const types    = lvl < 3 ? ['basic'] : lvl < 5 ? ['basic','fast'] : lvl < 7 ? ['basic','fast','tank'] : ['basic','fast','tank','splitter'];
   const spacingX = Math.min(80, (canvas.width - 80) / cols);
   const startX   = (canvas.width - spacingX * (cols - 1)) / 2;
 
@@ -456,13 +478,48 @@ function spawnWave() {
     }
   }
   state.starSpeed = 1.5 + lvl * 0.4;
+  applyFormation(state.enemies.filter(e => e.type !== 'boss'), lvl);
+}
+
+function applyFormation(freshEnemies, lvl) {
+  if (lvl < 3 || freshEnemies.length < 4) return;
+  const pick = lvl % 4; // 0=grid(default), 1=V, 2=pincer, 3=spiral
+  if (pick === 1) {
+    // V-shape: spread enemies in two diagonal arms
+    const half = Math.floor(freshEnemies.length / 2);
+    freshEnemies.forEach((e, i) => {
+      if (i < half) { e.x = canvas.width * 0.25 + i * 55; e.y = 60 + i * 38; }
+      else           { const j = i - half; e.x = canvas.width * 0.75 - j * 55; e.y = 60 + j * 38; }
+      e.startX = e.x;
+    });
+  } else if (pick === 2) {
+    // Pincer: two columns on far sides converging toward center
+    freshEnemies.forEach((e, i) => {
+      const side = i % 2;
+      const row  = Math.floor(i / 2);
+      e.x = side === 0 ? 60 + row * 10 : canvas.width - 60 - row * 10;
+      e.y = 55 + row * 65;
+      e.startX = e.x;
+    });
+  } else if (pick === 3) {
+    // Spiral: enemies placed along an Archimedean spiral
+    freshEnemies.forEach((e, i) => {
+      const angle = i * 0.72;
+      const r     = 28 + i * 14;
+      e.x = canvas.width / 2 + Math.cos(angle) * r;
+      e.y = 100 + Math.sin(angle) * Math.abs(r * 0.4);
+      e.startX = e.x;
+    });
+  }
 }
 
 function createEnemy(type, x, y) {
   const configs = {
-    basic: { hp: 1, speed: 1.0, size: 32, color: COLORS.secondary, score: 100, fireRate: 3500 },
-    fast:  { hp: 1, speed: 2.2, size: 26, color: COLORS.primary,   score: 150, fireRate: 2800 },
-    tank:  { hp: 3, speed: 0.7, size: 44, color: COLORS.accent,    score: 300, fireRate: 4500 },
+    basic:    { hp: 1, speed: 1.0, size: 32, color: COLORS.secondary, score: 100, fireRate: 3500 },
+    fast:     { hp: 1, speed: 2.2, size: 26, color: COLORS.primary,   score: 150, fireRate: 2800 },
+    tank:     { hp: 3, speed: 0.7, size: 44, color: COLORS.accent,    score: 300, fireRate: 4500 },
+    splitter: { hp: 2, speed: 1.3, size: 36, color: '#ff9900',        score: 200, fireRate: 3200 },
+    minion:   { hp: 1, speed: 1.8, size: 22, color: '#aa44ff',        score:  80, fireRate: 2500 },
   };
   const cfg = configs[type];
   return {
@@ -505,32 +562,97 @@ function createBoss(lvl) {
 }
 
 function bossShoot(boss) {
-  const phase = boss.phase;
-  const bulletCount = phase === 1 ? 5 : phase === 2 ? 7 : 9;
-  const spread      = Math.PI / 2.8;
-  const baseAngle   = Math.atan2(state.player.y - boss.y, state.player.x - boss.x);
-  const bSpeed      = 3.2 + phase * 0.4;
+  const phase  = boss.phase;
+  // Each bullet always re-aims at the player's current position — true continuous tracking
+  const angle  = Math.atan2(state.player.y - boss.y, state.player.x - boss.x);
+  const bSpeed = 4.8 + phase * 0.5;
+  const bx     = boss.x;
+  const by     = boss.y + boss.size / 2;
 
-  for (let i = 0; i < bulletCount; i++) {
-    const angle = baseAngle + spread * (i / (bulletCount - 1) - 0.5);
-    state.eBullets.push({
-      x: boss.x, y: boss.y + boss.size / 2,
-      vx: Math.cos(angle) * bSpeed,
-      vy: Math.sin(angle) * bSpeed,
-      life: 1,
-      isBoss: true,
+  // Primary beam — always aimed straight at the player
+  state.eBullets.push({
+    x: bx, y: by,
+    vx: Math.cos(angle) * bSpeed,
+    vy: Math.sin(angle) * bSpeed,
+    life: 1, isBoss: true,
+  });
+
+  // Phase 2+: add two tight flanker beams alongside the main beam
+  if (phase >= 2) {
+    [-0.18, 0.18].forEach(off => {
+      const a = angle + off;
+      state.eBullets.push({
+        x: bx, y: by,
+        vx: Math.cos(a) * (bSpeed - 0.6),
+        vy: Math.sin(a) * (bSpeed - 0.6),
+        life: 1, isBoss: true,
+      });
     });
   }
 
-  // Phase 3: extra aimed center bullet
+  // Phase 3: two wider flankers on top of the tight ones — 5-beam spread wall
   if (phase === 3) {
-    state.eBullets.push({
-      x: boss.x, y: boss.y + boss.size / 2,
-      vx: Math.cos(baseAngle) * (bSpeed + 1.5),
-      vy: Math.sin(baseAngle) * (bSpeed + 1.5),
-      life: 1, isBoss: true,
+    [-0.40, 0.40].forEach(off => {
+      const a = angle + off;
+      state.eBullets.push({
+        x: bx, y: by,
+        vx: Math.cos(a) * (bSpeed - 1.2),
+        vy: Math.sin(a) * (bSpeed - 1.2),
+        life: 1, isBoss: true,
+      });
     });
   }
+
+  SFX.bossShoot();
+}
+
+// ── SUB-BOSS ──────────────────────────────────────────────────────────────────
+
+function createSubBoss(mainBoss) {
+  const hp = Math.floor(mainBoss.maxHp * 0.45);
+  // Enters from a random side
+  const side = Math.random() < 0.5 ? -1 : 1;
+  return {
+    type:     'subboss',
+    x:        side === -1 ? -60 : canvas.width + 60,
+    y:        canvas.height * 0.28 + Math.random() * canvas.height * 0.18,
+    startX:   side === -1 ? canvas.width * 0.28 : canvas.width * 0.72,
+    hp, maxHp: hp,
+    size:     52,
+    speed:    0.9,
+    color:    '#ff2277',
+    score:    800,
+    fireRate: 1400,
+    lastShot: -800,
+    t:        0,
+    dir:      side,
+    angle:    0,
+    arrived:  false,
+    phase:    1,
+    targetY:  canvas.height * 0.28 + Math.random() * canvas.height * 0.18,
+  };
+}
+
+function showBossWarning2() {
+  const el = document.getElementById('level-flash');
+  el.textContent = '⚠  SUB-BOSS  INCOMING  ⚠';
+  el.classList.remove('show', 'boss-warn');
+  void el.offsetWidth;
+  el.classList.add('boss-warn');
+  SFX.bossWarning();
+}
+
+function subBossShoot(sub) {
+  // Always fires straight at the player — fast single beam
+  const angle  = Math.atan2(state.player.y - sub.y, state.player.x - sub.x);
+  const speed  = 5.0;
+  state.eBullets.push({
+    x: sub.x, y: sub.y + sub.size / 2,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    life: 1,
+    isBoss: true,   // same visual style as boss bullets
+  });
   SFX.bossShoot();
 }
 
@@ -564,6 +686,55 @@ function spawnHitParticles(x, y, color) {
       color,
     });
   }
+}
+
+// ── SCREEN SHAKE ─────────────────────────────────────────────────────────────
+
+function triggerShake(magnitude, duration) {
+  if (magnitude > (state.shake.mag || 0)) {
+    state.shake.mag = magnitude;
+    state.shake.dur = duration;
+  }
+}
+
+// ── FLOATING SCORE TEXTS ──────────────────────────────────────────────────────
+
+function spawnFloatingText(x, y, text, color, size = 16) {
+  state.floatingTexts.push({
+    x, y: y - 10,
+    vy: -1.4,
+    text,
+    color,
+    size,
+    life: 1,
+    decay: 0.022,
+  });
+}
+
+// ── COMBO ─────────────────────────────────────────────────────────────────────
+
+function registerKill(x, y, baseScore, now) {
+  const gap = now - state.lastKillTime;
+  state.lastKillTime = now;
+
+  if (gap < 1500) {
+    state.combo = Math.min(state.combo + 1, 8);
+  } else {
+    state.combo = 1;
+  }
+  state.comboTimer = 1500;
+  if (state.combo > (state._bestCombo || 1)) state._bestCombo = state.combo;
+
+  const total = baseScore * state.combo;
+  state.score += total;
+
+  if (state.combo >= 2) {
+    spawnFloatingText(x, y, `+${total}  x${state.combo}`, COLORS.accent, 18);
+  } else {
+    spawnFloatingText(x, y, `+${total}`, '#ffffff', 15);
+  }
+  popScore();
+  updateHUD();
 }
 
 // ── SHOOTING ─────────────────────────────────────────────────────────────────
@@ -625,6 +796,7 @@ function circleRect(cx, cy, cr, rx, ry, rw, rh) {
 
 function activateBomb() {
   SFX.bomb();
+  triggerShake(10, 400);
   const survivors = [];
   state.enemies.forEach(e => {
     if (e.type === 'boss') {
@@ -700,7 +872,7 @@ function update(now, dt) {
           if (e.type === 'boss') {
             // ── BOSS DEATH ──
             SFX.bossExplode();
-            // Chained explosions
+            triggerShake(14, 600);
             for (let k = 0; k < 6; k++) {
               setTimeout(() => {
                 if (!state) return;
@@ -711,21 +883,53 @@ function update(now, dt) {
             }
             state.bossActive = false;
             state.boss       = null;
+            state.bossSpawnTimer = 0;
             dropGuaranteedPowerup(e.x, e.y - 30);
             dropGuaranteedPowerup(e.x - 40, e.y);
             showLevelFlash('BOSS DEFEATED!');
+            spawnFloatingText(e.x, e.y - 40, 'BOSS DOWN!', COLORS.boss, 22);
+          } else if (e.type === 'subboss') {
+            // ── SUB-BOSS DEATH ──
+            SFX.bossExplode();
+            triggerShake(9, 380);
+            for (let k = 0; k < 4; k++) {
+              setTimeout(() => {
+                if (!state) return;
+                const ox = (Math.random() - 0.5) * e.size * 1.4;
+                const oy = (Math.random() - 0.5) * e.size * 1.4;
+                spawnExplosion(e.x + ox, e.y + oy, k % 2 === 0 ? '#ff2277' : COLORS.accent, 12);
+              }, k * 90);
+            }
+            dropGuaranteedPowerup(e.x, e.y);
+            // Reset spawn timer so another sub-boss can appear later
+            state.bossSpawnTimer = 0;
+            spawnFloatingText(e.x, e.y - 30, 'SUB-BOSS DOWN!', '#ff2277', 18);
           } else {
-            e.type === 'tank' ? SFX.tankExplode() : SFX.enemyExplode();
+            if (e.type === 'splitter') {
+              SFX.enemyExplode();
+              [-28, 28].forEach(ox => {
+                const sp = createEnemy('fast', e.x + ox, e.y);
+                sp.speed *= 1.4;
+                sp.size   = 18;
+                state.enemies.push(sp);
+              });
+              spawnFloatingText(e.x, e.y, 'SPLIT!', '#ff9900', 14);
+            } else {
+              e.type === 'tank' ? SFX.tankExplode() : SFX.enemyExplode();
+            }
             maybeSpawnPowerup(e.x, e.y);
           }
-          state.score += e.score * state.level;
+          registerKill(e.x, e.y, e.score * state.level, now);
           state.totalKilled++;
-          state.enemiesKilled++;
+          // Don't count boss-phase minions toward wave completion
+          if (!state.bossActive || e.type === 'boss') state.enemiesKilled++;
           state.enemies.splice(j, 1);
-          popScore();
-          updateHUD();
         } else if (e.type === 'boss') {
           SFX.bossHit();
+          triggerShake(3, 80);
+        } else if (e.type === 'subboss') {
+          SFX.bossHit();
+          triggerShake(2, 55);
         }
         break;
       }
@@ -733,67 +937,66 @@ function update(now, dt) {
     if (hit) continue;
   }
 
-  // ── Bullet-vs-Bullet Collision (player bullets intercept enemy bullets) ──────
+  // ── Bullet-vs-Bullet collision: player bullet meets enemy bullet mid-air ──────
   {
-    const toRemovePlayer  = new Set();
-    const toRemoveEnemy   = new Set();
+    const deadP = new Set();
+    const deadE = new Set();
 
     for (let i = state.bullets.length - 1; i >= 0; i--) {
-      if (toRemovePlayer.has(i)) continue;
+      if (deadP.has(i)) continue;
       const pb = state.bullets[i];
 
       for (let j = state.eBullets.length - 1; j >= 0; j--) {
-        if (toRemoveEnemy.has(j)) continue;
+        if (deadE.has(j)) continue;
         const eb = state.eBullets[j];
 
-        // Collision radius: player bullet ~6px, enemy bullet ~5-6px
-        const clashR = eb.isBoss ? 12 : 10;
-        const dist = Math.hypot(pb.x - eb.x, pb.y - eb.y);
-
-        if (dist < clashR) {
-          // Mid-point of clash
+        const clashR = eb.isBoss ? 13 : 10;
+        if (Math.hypot(pb.x - eb.x, pb.y - eb.y) < clashR) {
           const mx = (pb.x + eb.x) * 0.5;
           const my = (pb.y + eb.y) * 0.5;
 
-          // Dramatic multi-color clash explosion
-          spawnExplosion(mx, my, COLORS.primary,   8);  // cyan ring
-          spawnExplosion(mx, my, eb.isBoss ? COLORS.boss : COLORS.secondary, 8);  // enemy color ring
-          // Extra white sparks in centre
-          for (let k = 0; k < 5; k++) {
+          // Big visible explosion at clash point
+          spawnExplosion(mx, my, COLORS.primary, 10);
+          spawnExplosion(mx, my, eb.isBoss ? COLORS.boss : COLORS.secondary, 8);
+
+          // Bright white sparks at centre
+          for (let k = 0; k < 8; k++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spd   = Math.random() * 6 + 2;
             state.particles.push({
               x: mx, y: my,
-              vx: (Math.random() - 0.5) * 7,
-              vy: (Math.random() - 0.5) * 7,
-              life: 0.9,
-              decay: 0.07,
-              r: Math.random() * 2.5 + 1,
+              vx: Math.cos(angle) * spd,
+              vy: Math.sin(angle) * spd,
+              life: 1.0,
+              decay: 0.045,
+              r: Math.random() * 3 + 1.5,
               color: '#ffffff',
             });
           }
 
-          // Screen flash tint
-          ctx.save();
-          ctx.globalAlpha = 0.08;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.restore();
+          // Screen flash
+          triggerShake(2, 60);
 
+          // Floating text
+          spawnFloatingText(mx, my, 'CLASH!', COLORS.accent, 15);
+
+          // Sound
           SFX.bulletClash();
 
-          // Give a tiny score bonus for intercepting
+          // Small score bonus
           state.score += eb.isBoss ? 15 : 5;
-          popScore();
+          updateHUD();
 
-          toRemovePlayer.add(i);
-          toRemoveEnemy.add(j);
+          deadP.add(i);
+          deadE.add(j);
           break;
         }
       }
     }
 
-    // Remove clashed bullets (splice in reverse index order)
-    [...toRemovePlayer].sort((a, b) => b - a).forEach(i => state.bullets.splice(i, 1));
-    [...toRemoveEnemy].sort((a, b) => b - a).forEach(j => state.eBullets.splice(j, 1));
+    // Remove clashed bullets in reverse order
+    [...deadP].sort((a, b) => b - a).forEach(i => state.bullets.splice(i, 1));
+    [...deadE].sort((a, b) => b - a).forEach(j => state.eBullets.splice(j, 1));
   }
 
   // ── Enemy bullets
@@ -848,7 +1051,7 @@ function update(now, dt) {
         }
       }
 
-      const fr = boss.phase === 1 ? 2100 : boss.phase === 2 ? 1500 : 950;
+      const fr = boss.phase === 1 ? 180 : boss.phase === 2 ? 140 : 100;
       if (now - boss.lastShot > fr) {
         boss.lastShot = now;
         bossShoot(boss);
@@ -856,10 +1059,44 @@ function update(now, dt) {
     }
   }
 
-  // ── Normal enemies movement + shooting (skip boss, handled above)
+  // ── Sub-boss movement + shooting
+  for (let i = state.enemies.length - 1; i >= 0; i--) {
+    const sb = state.enemies[i];
+    if (sb.type !== 'subboss') continue;
+
+    sb.angle += 0.018;
+    const hpF = sb.hp / sb.maxHp;
+    sb.phase  = hpF > 0.5 ? 1 : 2;
+
+    if (!sb.arrived) {
+      // Slide in from the side toward its target X position
+      sb.x += (sb.startX - sb.x) * 0.04;
+      if (Math.abs(sb.x - sb.startX) < 4) sb.arrived = true;
+    } else {
+      // Figure-eight patrol independent of the main boss
+      sb.t += 0.009 + sb.phase * 0.003;
+      const sweepX = canvas.width * 0.22;
+      const sweepY = canvas.height * 0.08;
+      sb.x = sb.startX + Math.sin(sb.t) * sweepX;
+      sb.y = sb.targetY + Math.sin(sb.t * 2) * sweepY;
+    }
+
+    if (now - sb.lastShot > sb.fireRate) {
+      sb.lastShot = now;
+      subBossShoot(sb);
+    }
+
+    // Sub-boss exits screen (push player out) — treat like enemy passing
+    if (sb.y > canvas.height + 80) {
+      state.enemies.splice(i, 1);
+      hitPlayer();
+    }
+  }
+
+  // ── Normal enemies movement + shooting (skip boss/subboss, handled above)
   for (let i = state.enemies.length - 1; i >= 0; i--) {
     const e = state.enemies[i];
-    if (e.type === 'boss') continue;
+    if (e.type === 'boss' || e.type === 'subboss') continue;
 
     e.t += 0.015 * e.speed;
     e.x  = e.startX + Math.sin(e.t) * (40 + state.level * 8);
@@ -911,11 +1148,45 @@ function update(now, dt) {
     if (pt.life <= 0) state.particles.splice(i, 1);
   }
 
-  // ── Stars
+  // ── Stars (3-layer parallax)
   state.stars.forEach(s => {
     s.y += s.speed * state.starSpeed;
+    if (s.layer === 2) s.x += Math.sin(s.y * 0.008) * 0.18;
     if (s.y > canvas.height + 5) { s.y = -5; s.x = Math.random() * canvas.width; }
   });
+
+  // ── Combo timer decay
+  if (state.comboTimer > 0) {
+    state.comboTimer -= dt;
+    if (state.comboTimer <= 0) state.combo = 1;
+  }
+
+  // ── Floating texts
+  for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+    const ft = state.floatingTexts[i];
+    ft.y    += ft.vy;
+    ft.life -= ft.decay;
+    if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+  }
+
+  // ── Screen shake decay
+  if (state.shake.dur > 0) state.shake.dur -= dt;
+  else state.shake.mag = 0;
+
+  // ── Sub-boss spawner: a smaller boss appears while the main boss is alive
+  if (state.bossActive && state.boss && state.boss.arrived) {
+    state.bossSpawnTimer += dt;
+    if (state.bossSpawnTimer >= state.bossSpawnRate) {
+      state.bossSpawnTimer = 0;
+      // Only spawn a sub-boss if none already on field
+      const subAlive = state.enemies.some(e => e.type === 'subboss');
+      if (!subAlive) {
+        const sub = createSubBoss(state.boss);
+        state.enemies.push(sub);
+        showBossWarning2();
+      }
+    }
+  }
 
   // ── Wave cleared?
   if (state.enemies.length === 0 && !state.bossWarning && !state.bossActive) {
@@ -937,6 +1208,9 @@ function hitPlayer(damage = 34) {
 
   p.hull -= damage;
   spawnHitParticles(p.x, p.y, COLORS.danger);
+  triggerShake(6, 220);
+  // Reset combo on hit — risk/reward
+  state.combo = 1;
 
   // Short invulnerability after non-lethal damage to avoid instant melt.
   p.invincible = true;
@@ -975,6 +1249,14 @@ function draw(now) {
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // ── Screen shake transform
+  ctx.save();
+  if (state.shake.dur > 0 && state.shake.mag > 0) {
+    const sx = (Math.random() - 0.5) * state.shake.mag;
+    const sy = (Math.random() - 0.5) * state.shake.mag;
+    ctx.translate(sx, sy);
+  }
+
   drawStars();
   drawParticles();
   drawPowerups(now);
@@ -984,14 +1266,55 @@ function draw(now) {
   if (state.lives > 0) drawPlayer(now);
   drawBossHPBar(now);
   drawPlayerHullBar();
+  ctx.restore(); // end shake transform
+
+  // ── Floating texts drawn above everything, outside shake
+  drawFloatingTexts();
+  drawComboHUD();
+}
+
+function drawFloatingTexts() {
+  state.floatingTexts.forEach(ft => {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, ft.life * 1.5);
+    ctx.fillStyle   = ft.color;
+    ctx.shadowColor = ft.color;
+    ctx.shadowBlur  = 10;
+    ctx.font        = `bold ${ft.size}px 'Poppins', sans-serif`;
+    ctx.textAlign   = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.restore();
+  });
+}
+
+function drawComboHUD() {
+  if (!state.combo || state.combo < 2) return;
+  const alpha = Math.min(1, state.comboTimer / 400);
+  const scale = 1 + (state.combo - 1) * 0.06;
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.95;
+  ctx.translate(canvas.width / 2, canvas.height - 48);
+  ctx.scale(scale, scale);
+  const col = state.combo >= 6 ? COLORS.danger : state.combo >= 4 ? COLORS.accent : COLORS.green;
+  ctx.font        = `bold 20px 'Poppins', sans-serif`;
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle   = col;
+  ctx.shadowColor = col;
+  ctx.shadowBlur  = 18;
+  ctx.fillText(`COMBO  x${state.combo}`, 0, 0);
+  ctx.restore();
 }
 
 // ── DRAW: STARS ───────────────────────────────────────────────────────────────
 
 function drawStars() {
-  ctx.fillStyle = '#aaddff';
+  // Draw each parallax layer with slightly different tints for depth
+  const tints = ['#6688cc', '#99bbdd', '#ccddff'];
   state.stars.forEach(s => {
     ctx.globalAlpha = s.alpha;
+    ctx.fillStyle   = tints[s.layer] || '#aaddff';
     ctx.beginPath();
     ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     ctx.fill();
@@ -1081,6 +1404,11 @@ function drawEnemies(now) {
       ctx.restore();
       return;
     }
+    if (e.type === 'subboss') {
+      drawSubBossEnemy(e, now);
+      ctx.restore();
+      return;
+    }
 
     const hpFrac = e.hp / e.maxHp;
     ctx.fillStyle   = e.color;
@@ -1127,6 +1455,41 @@ function drawEnemies(now) {
         ctx.fillStyle   = hpFrac > 0.5 ? COLORS.green : hpFrac > 0.25 ? COLORS.accent : COLORS.danger;
         ctx.fillRect(-s, s + 4, s * 2 * hpFrac, 4);
       }
+
+    } else if (e.type === 'splitter') {
+      // Diamond shape with pulsing inner core — splits on death
+      const s = e.size / 2;
+      const pulse = 0.12 * Math.sin(Date.now() * 0.006) + 0.88;
+      ctx.beginPath();
+      ctx.moveTo(0, -s); ctx.lineTo(s * 0.7, 0);
+      ctx.lineTo(0, s);  ctx.lineTo(-s * 0.7, 0);
+      ctx.closePath();
+      ctx.fill();
+      // Inner glow core
+      ctx.globalAlpha = 0.55 * pulse;
+      ctx.fillStyle   = '#ffdd44';
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.38, 0, Math.PI * 2);
+      ctx.fill();
+      // HP bar
+      if (e.hp < e.maxHp) {
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle   = '#333';
+        ctx.fillRect(-s, s + 4, s * 2, 4);
+        ctx.fillStyle   = hpFrac > 0.5 ? COLORS.green : COLORS.danger;
+        ctx.fillRect(-s, s + 4, s * 2 * hpFrac, 4);
+      }
+
+    } else if (e.type === 'minion') {
+      // Small, arrow-like, boss-purple — fast and aggressive
+      const s = e.size / 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s * 0.55, s * 0.6);
+      ctx.lineTo(0, s * 0.25);
+      ctx.lineTo(-s * 0.55, s * 0.6);
+      ctx.closePath();
+      ctx.fill();
     }
 
     ctx.restore();
@@ -1134,6 +1497,89 @@ function drawEnemies(now) {
 }
 
 // ── DRAW: BOSS ────────────────────────────────────────────────────────────────
+
+function drawSubBossEnemy(e, now) {
+  const s      = e.size / 2;
+  const hpFrac = e.hp / e.maxHp;
+  const pulse  = 0.18 * Math.sin(now * 0.005) + 0.82;
+
+  // Rotating outer ring — hot pink
+  ctx.save();
+  ctx.rotate(e.angle || 0);
+  ctx.strokeStyle = '#ff2277';
+  ctx.lineWidth   = 1.5;
+  ctx.globalAlpha = 0.5 * pulse;
+  ctx.setLineDash([8, 5]);
+  ctx.beginPath();
+  ctx.arc(0, 0, s + 16, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // Counter-rotating inner ring (phase 2 = faster, more aggressive)
+  ctx.save();
+  ctx.rotate(-(e.angle || 0) * 1.8);
+  ctx.strokeStyle = e.phase === 2 ? COLORS.danger : '#ff6699';
+  ctx.lineWidth   = 1;
+  ctx.globalAlpha = 0.35 * pulse;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  ctx.arc(0, 0, s + 6, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // Pentagonal body
+  ctx.fillStyle   = '#880033';
+  ctx.shadowColor = '#ff2277';
+  ctx.shadowBlur  = 16;
+  ctx.globalAlpha = 0.95;
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a = (Math.PI * 2 / 5) * i - Math.PI / 2;
+    i === 0 ? ctx.moveTo(Math.cos(a) * s, Math.sin(a) * s)
+            : ctx.lineTo(Math.cos(a) * s, Math.sin(a) * s);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Inner body (darker)
+  ctx.fillStyle  = '#3a0015';
+  ctx.shadowBlur = 0;
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a = (Math.PI * 2 / 5) * i - Math.PI / 2;
+    const r = s * 0.55;
+    i === 0 ? ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r)
+            : ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Pulsing core — shifts red when low HP
+  const coreColor = hpFrac > 0.5 ? '#ff2277' : COLORS.danger;
+  ctx.fillStyle   = coreColor;
+  ctx.shadowColor = coreColor;
+  ctx.shadowBlur  = 20;
+  ctx.globalAlpha = pulse;
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Gun nozzle (bottom)
+  ctx.fillStyle   = '#1a000a';
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur  = 0;
+  ctx.fillRect(-3, s * 0.42, 6, 16);
+
+  // Mini HP bar above sub-boss
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle   = '#1a0012';
+  ctx.fillRect(-s, -s - 12, s * 2, 4);
+  ctx.fillStyle   = hpFrac > 0.5 ? COLORS.green : hpFrac > 0.25 ? COLORS.accent : COLORS.danger;
+  ctx.fillRect(-s, -s - 12, s * 2 * hpFrac, 4);
+  ctx.globalAlpha = 1;
+}
 
 function drawBossEnemy(e, now) {
   const s      = e.size / 2;
